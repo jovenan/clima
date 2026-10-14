@@ -1,0 +1,24 @@
+[build-system]
+requires = ["setuptools>=77"]  # 77+ understands the SPDX `license = "MIT"` field
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "clima"
+version = "0.1.0"
+description = "Local air conditioner control from the terminal and the macOS menu bar, with pluggable providers."
+readme = "README.md"
+license = "MIT"
+authors = [{name = "Jonatas Venancio"}]
+requires-python = ">=3.10"
+dependencies = []
+
+[project.optional-dependencies]
+# Each provider declares its own dependencies
+midea = ["msmart-ng>=2026.9.0"]
+
+[project.scripts]
+clima = "clima.cli.main:main"
+clima-bridge = "clima.bridge.server:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
