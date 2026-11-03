@@ -2,17 +2,22 @@
 
 from __future__ import annotations
 
+import logging
 from contextlib import contextmanager
 from typing import Any, Iterator, Mapping
 
+from msmart.base_device import Device
 from msmart.device import AirConditioner as AC
 from msmart.device.AC.command import PropertyId
+from msmart.discover import Discover
 
 from ...core import (Capabilities, Changes, ClimateProvider, DeviceState, Feature, SetupIO, register)
 from ...core.errors import ConfigError, DeviceError
 from . import setup
 from .mapping import (FAN_SPEEDS, HORIZONTAL_BITS, LOUVER_ANGLES, MODES, VERTICAL_BITS, domain_value,
                       louver_position, swing_mode)
+
+log = logging.getLogger(__name__)
 
 REQUIRED_SETTINGS = ("ip", "port", "device_id", "token", "key")
 
@@ -36,12 +41,17 @@ class MideaProvider(ClimateProvider):
     # ------------------------------------------------------------- contract
 
     async def connect(self) -> None:
-        with _device_errors():
-            device = AC(ip=self.settings["ip"], port=int(self.settings["port"]),
-                        device_id=int(self.settings["device_id"]))
-            await device.authenticate(self.settings["token"], self.settings["key"])
-            await device.get_capabilities()
-            await _refresh(device)
+        address = (self.settings["ip"], int(self.settings["port"]))
+        try:
+            device = await self._connect_at(*address)
+        except DeviceError:
+            # The router may have given the AC a new IP (DHCP): look for it on the network by its id
+            found = await _discover(int(self.settings["device_id"]))
+            if found is None or (found.ip, found.port) == address:
+                raise
+            device = await self._connect_at(found.ip, found.port)
+            log.info("device moved from %s:%s to %s:%s", *address, found.ip, found.port)
+            self.update_settings(ip=found.ip, port=found.port)
         self._device = device
 
     async def capabilities(self) -> Capabilities:
@@ -63,6 +73,14 @@ class MideaProvider(ClimateProvider):
             elif changes.self_clean is False:
                 # msmart only exposes start_self_clean(); to stop, turn the same property off
                 await device._apply_properties({PropertyId.SELF_CLEAN: False})
+
+    async def _connect_at(self, ip: str, port: int) -> AC:
+        with _device_errors():
+            device = AC(ip=ip, port=port, device_id=int(self.settings["device_id"]))
+            await device.authenticate(self.settings["token"], self.settings["key"])
+            await device.get_capabilities()
+            await _refresh(device)
+        return device
 
     def _require_device(self) -> AC:
         if self._device is None:
@@ -143,6 +161,16 @@ def _set_attributes(device: AC, changes: Changes) -> bool:
     if c.turbo is not None:
         device.turbo = c.turbo
     return any(v is not None for k, v in c.set_fields().items() if k != "self_clean")
+
+
+async def _discover(device_id: int) -> Device | None:
+    """Searches the local network for the device with this id. Never raises: `None` if not found."""
+    try:
+        devices = await Discover.discover(auto_connect=False)
+    except Exception as e:
+        log.info("discovery failed: %s", e)
+        return None
+    return next((d for d in devices if d.id == device_id), None)
 
 
 async def _refresh(device: AC) -> None:
