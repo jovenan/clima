@@ -87,6 +87,7 @@ class MyBrandProvider(ClimateProvider):
 | **Invalid configuration becomes `ConfigError`.** | It is shown to the user with the hint to run `clima setup`. |
 | **Don't validate ranges in `apply()`.** | `ClimateService` validates against `capabilities()` first, so an invalid request never reaches the provider. |
 | **`connect()` may be called again** after a failure. | That is how reconnection works. |
+| **Settings the provider discovers on its own go through `self.update_settings(...)`** (e.g. the device's new IP). | They are saved to the configuration, so the next connection already uses them. |
 | **`capabilities()` is read once per connection.** | Don't rely on momentary readings (e.g. a sensor that sometimes doesn't answer). Declare the sensor and return `None` in the state. |
 | **Values the device controls on its own** come back as `None`. | The interfaces show "set by the device". |
 | **A louver position is `1..louver_positions`**; `None` = no fixed position. | Fixing a position stops that axis from swinging (the service already sends `swing_*=False` along with it). |

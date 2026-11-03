@@ -8,7 +8,7 @@ implement this class and register it (see `docs/PROVIDERS.md`).
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import Any, ClassVar, Mapping, Protocol
+from typing import Any, Callable, ClassVar, Mapping, Protocol
 
 from .models import Capabilities, Changes, DeviceState
 
@@ -37,9 +37,18 @@ class ClimateProvider(ABC):
     name: ClassVar[str]
     #: Friendly name shown to the user.
     display_name: ClassVar[str]
+    #: Persists `settings` the provider changed on its own (e.g. the device got a new IP).
+    #: Injected by the composition root; `None` means changes live only in memory.
+    on_settings_changed: Callable[[dict[str, Any]], None] | None = None
 
     def __init__(self, settings: Mapping[str, Any]) -> None:
         self.settings = dict(settings)
+
+    def update_settings(self, **changes: Any) -> None:
+        """Updates `settings` and asks for them to be persisted."""
+        self.settings.update(changes)
+        if self.on_settings_changed:
+            self.on_settings_changed(dict(self.settings))
 
     @classmethod
     async def interactive_setup(cls, io: SetupIO) -> dict[str, Any]:

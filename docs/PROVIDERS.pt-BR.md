@@ -87,6 +87,7 @@ class MyBrandProvider(ClimateProvider):
 | **Configuração inválida vira `ConfigError`.** | Aparece para o usuário com a dica de rodar `clima setup`. |
 | **Não valide faixas em `apply()`.** | O `ClimateService` valida antes contra `capabilities()`, e um pedido inválido nunca chega ao provider. |
 | **`connect()` pode ser chamado de novo** depois de uma falha. | É assim que a reconexão funciona. |
+| **Settings que o provider descobre sozinho passam por `self.update_settings(...)`** (ex.: o novo IP do aparelho). | Elas são salvas na configuração, e a próxima conexão já usa os valores novos. |
 | **`capabilities()` é lido uma vez por conexão.** | Não dependa de leituras momentâneas (ex.: um sensor que às vezes não responde). Declare o sensor e devolva `None` no estado. |
 | **Valores que o aparelho controla sozinho** voltam como `None`. | As interfaces mostram "set by the device". |
 | **Posição de aleta é `1..louver_positions`**; `None` = sem posição fixa. | Fixar uma posição para a oscilação daquele eixo (o serviço já manda `swing_*=False` junto). |
